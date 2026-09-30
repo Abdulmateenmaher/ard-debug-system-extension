@@ -6,18 +6,20 @@ import {
   Download, 
   Users, 
   Database, 
-  LayoutDashboard,
-  ChevronDown,
-  UserCheck,
-  Sun,
-  Moon,
-  Laptop,
-  Languages,
-  Menu,
-  X,
-  Camera,
-  Layers,
-  Sparkles
+  LayoutDashboard, 
+  ChevronDown, 
+  UserCheck, 
+  Sun, 
+  Moon, 
+  Laptop, 
+  Languages, 
+  Menu, 
+  X, 
+  Camera, 
+  Layers, 
+  Sparkles, 
+  Github,
+  ExternalLink
 } from 'lucide-react';
 import { useQAData } from '../context/QADataContext';
 import { useAuth } from '../context/AuthContext';
@@ -25,17 +27,19 @@ import { useThemeLanguage, AppLanguage, AppTheme } from '../context/ThemeLanguag
 import { UserRole } from '../types/qa';
 
 interface NavbarProps {
-  currentView: 'sandbox' | 'dashboard' | 'extension' | 'team' | 'backup';
-  setCurrentView: (view: 'sandbox' | 'dashboard' | 'extension' | 'team' | 'backup') => void;
+  currentView: 'dashboard' | 'websites' | 'extension' | 'team' | 'backup';
+  setCurrentView: (view: 'dashboard' | 'websites' | 'extension' | 'team' | 'backup') => void;
   onOpenNewIssue: () => void;
   onSnapCurrentSite: () => void;
+  onOpenGitHubPages?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ 
   currentView, 
   setCurrentView, 
   onOpenNewIssue,
-  onSnapCurrentSite
+  onSnapCurrentSite,
+  onOpenGitHubPages
 }) => {
   const { 
     websites, 
@@ -82,7 +86,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-3 sm:gap-6">
             <button 
-              onClick={() => setCurrentView('sandbox')}
+              onClick={() => setCurrentView('dashboard')}
               className="flex items-center gap-2.5 group cursor-pointer focus-visible:outline-none"
             >
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-rose-500/20 group-hover:scale-105 transition-transform text-white">
@@ -101,19 +105,32 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </button>
 
-            {/* Target Website Selector */}
-            <div className="relative hidden xl:block">
+            {/* Target Website Selector & External Site Direct Launcher */}
+            <div className="relative hidden xl:flex items-center gap-1">
               <button
                 onClick={() => setShowWebsiteMenu(!showWebsiteMenu)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 dark:bg-slate-900 light:bg-slate-100 hover:bg-slate-800 border border-slate-700/80 dark:border-slate-800 light:border-slate-300 rounded-xl text-xs font-medium text-slate-200 dark:text-slate-200 light:text-slate-700 transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 dark:bg-slate-900 light:bg-slate-100 hover:bg-slate-800 border border-slate-700/80 dark:border-slate-800 light:border-slate-300 rounded-xl text-xs font-medium text-slate-200 dark:text-slate-200 light:text-slate-700 transition-colors cursor-pointer"
               >
                 <Globe className="w-3.5 h-3.5 text-indigo-400" />
                 <span className="max-w-[130px] truncate">{activeWebsite?.name || t('nav.targetWebsite')}</span>
-                <span className="text-[10px] px-1.5 py-0.2 bg-slate-700/60 dark:bg-slate-800 light:bg-slate-200 rounded text-slate-300 light:text-slate-700">
+                <span className="text-[10px] px-1.5 py-0.2 bg-slate-700/60 dark:bg-slate-800 light:bg-slate-200 rounded text-slate-300 light:text-slate-700 font-mono">
                   {openIssuesCount}
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
+
+              {/* Direct button to launch external website in new tab */}
+              {activeWebsite?.url && (
+                <a
+                  href={activeWebsite.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 rounded-xl bg-slate-800/80 dark:bg-slate-900 light:bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-400 border border-slate-700/80 dark:border-slate-800 light:border-slate-300 transition-colors cursor-pointer"
+                  title={`Launch external site ${activeWebsite.url} in new tab`}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
 
               {showWebsiteMenu && (
                 <div className="absolute top-full start-0 mt-1.5 w-72 bg-slate-800 dark:bg-slate-900 light:bg-white border border-slate-700 dark:border-slate-800 light:border-slate-200 rounded-xl shadow-2xl p-2 z-50">
@@ -168,18 +185,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Central Navigation Views (Desktop) */}
           <nav className="hidden lg:flex items-center gap-1 bg-slate-800/80 dark:bg-slate-900/90 light:bg-slate-100 p-1 rounded-xl border border-slate-700/60 dark:border-slate-800 light:border-slate-200">
             <button
-              onClick={() => setCurrentView('sandbox')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                currentView === 'sandbox' 
-                  ? 'bg-indigo-600 text-white shadow-sm' 
-                  : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white light:hover:text-black hover:bg-slate-700/60 light:hover:bg-slate-200'
-              }`}
-            >
-              <Globe className="w-3.5 h-3.5 text-indigo-300" />
-              <span>{t('nav.sandbox')}</span>
-            </button>
-
-            <button
               onClick={() => setCurrentView('dashboard')}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 currentView === 'dashboard' 
@@ -190,6 +195,31 @@ export const Navbar: React.FC<NavbarProps> = ({
               <LayoutDashboard className="w-3.5 h-3.5 text-rose-300" />
               <span>{t('nav.dashboard')}</span>
               <span className="text-[10px] bg-slate-900/60 light:bg-white px-1.5 py-0.2 rounded-full font-mono text-slate-300 light:text-slate-800">{currentWebIssues.length}</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentView('websites')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                currentView === 'websites' 
+                  ? 'bg-indigo-600 text-white shadow-sm' 
+                  : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white light:hover:text-black hover:bg-slate-700/60 light:hover:bg-slate-200'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5 text-indigo-300" />
+              <span>{t('nav.websites')}</span>
+              <span className="text-[10px] bg-slate-900/60 light:bg-white px-1.5 py-0.2 rounded-full font-mono text-slate-300 light:text-slate-800">{websites.length}</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentView('extension')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                currentView === 'extension' 
+                  ? 'bg-indigo-600 text-white shadow-sm' 
+                  : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white light:hover:text-black hover:bg-slate-700/60 light:hover:bg-slate-200'
+              }`}
+            >
+              <Download className="w-3.5 h-3.5 text-sky-300" />
+              <span>{t('nav.download')}</span>
             </button>
 
             <button
@@ -215,18 +245,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Database className="w-3.5 h-3.5 text-emerald-300" />
               <span>{t('nav.backup')}</span>
             </button>
-
-            <button
-              onClick={() => setCurrentView('extension')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                currentView === 'extension' 
-                  ? 'bg-indigo-600 text-white shadow-sm' 
-                  : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white light:hover:text-black hover:bg-slate-700/60 light:hover:bg-slate-200'
-              }`}
-            >
-              <Download className="w-3.5 h-3.5 text-sky-300" />
-              <span>{t('nav.download')}</span>
-            </button>
           </nav>
 
           {/* Right Action Cluster */}
@@ -250,6 +268,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
               <span className="hidden sm:inline">{t('nav.logBug')}</span>
             </button>
+
+            {/* GitHub Pages Deploy Helper */}
+            {onOpenGitHubPages && (
+              <button
+                onClick={onOpenGitHubPages}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800/90 dark:bg-slate-800 light:bg-slate-100 hover:bg-slate-700 text-slate-200 light:text-slate-800 text-xs font-semibold rounded-xl border border-slate-700 dark:border-slate-700 light:border-slate-300 transition-all cursor-pointer"
+                title="Publish to GitHub Pages"
+              >
+                <Github className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="hidden md:inline">GitHub Pages</span>
+              </button>
+            )}
 
             {/* Language Selector (English, Dari, Pashto) */}
             <div className="relative">
@@ -444,16 +474,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         {showMobileNav && (
           <div className="lg:hidden border-t border-slate-800 dark:border-slate-800 light:border-slate-200 bg-slate-900 dark:bg-slate-950 light:bg-white p-3 space-y-1.5 animate-in slide-in-from-top-2">
             <button
-              onClick={() => { setCurrentView('sandbox'); setShowMobileNav(false); }}
-              className={`w-full flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold ${
-                currentView === 'sandbox' ? 'bg-indigo-600 text-white' : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:bg-slate-800 light:hover:bg-slate-100'
-              }`}
-            >
-              <Globe className="w-4 h-4 text-indigo-400" />
-              <span>{t('nav.sandbox')}</span>
-            </button>
-
-            <button
               onClick={() => { setCurrentView('dashboard'); setShowMobileNav(false); }}
               className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold ${
                 currentView === 'dashboard' ? 'bg-indigo-600 text-white' : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:bg-slate-800 light:hover:bg-slate-100'
@@ -466,6 +486,31 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 dark:bg-slate-800 light:bg-slate-200 font-mono">
                 {currentWebIssues.length}
               </span>
+            </button>
+
+            <button
+              onClick={() => { setCurrentView('websites'); setShowMobileNav(false); }}
+              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold ${
+                currentView === 'websites' ? 'bg-indigo-600 text-white' : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:bg-slate-800 light:hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-indigo-400" />
+                <span>{t('nav.websites')}</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 dark:bg-slate-800 light:bg-slate-200 font-mono">
+                {websites.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => { setCurrentView('extension'); setShowMobileNav(false); }}
+              className={`w-full flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold ${
+                currentView === 'extension' ? 'bg-indigo-600 text-white' : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:bg-slate-800 light:hover:bg-slate-100'
+              }`}
+            >
+              <Download className="w-4 h-4 text-sky-400" />
+              <span>{t('nav.download')}</span>
             </button>
 
             <button
@@ -488,15 +533,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{t('nav.backup')}</span>
             </button>
 
-            <button
-              onClick={() => { setCurrentView('extension'); setShowMobileNav(false); }}
-              className={`w-full flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold ${
-                currentView === 'extension' ? 'bg-indigo-600 text-white' : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:bg-slate-800 light:hover:bg-slate-100'
-              }`}
-            >
-              <Download className="w-4 h-4 text-sky-400" />
-              <span>{t('nav.download')}</span>
-            </button>
+            {onOpenGitHubPages && (
+              <button
+                onClick={() => { onOpenGitHubPages(); setShowMobileNav(false); }}
+                className="w-full flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 hover:bg-slate-800 light:hover:bg-slate-100"
+              >
+                <Github className="w-4 h-4 text-indigo-400" />
+                <span>GitHub Pages Deploy</span>
+              </button>
+            )}
           </div>
         )}
       </header>

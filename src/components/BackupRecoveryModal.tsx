@@ -8,10 +8,13 @@ import {
   AlertCircle, 
   Printer, 
   RefreshCw,
-  HardDriveDownload
+  HardDriveDownload,
+  Github,
+  Globe
 } from 'lucide-react';
 import { useQAData } from '../context/QADataContext';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
+import { GitHubPagesModal } from './GitHubPagesModal';
 
 export const BackupRecoveryModal: React.FC = () => {
   const { 
@@ -24,10 +27,11 @@ export const BackupRecoveryModal: React.FC = () => {
     teamMembers 
   } = useQAData();
   
-  const { t } = useThemeLanguage();
+  const { t, language } = useThemeLanguage();
 
   const [restoreSuccess, setRestoreSuccess] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [showGhModal, setShowGhModal] = useState(false);
 
   const handleDownloadJSON = () => {
     const jsonStr = exportBackupJSON();
@@ -203,6 +207,44 @@ export const BackupRecoveryModal: React.FC = () => {
         </div>
 
       </div>
+
+      {/* GitHub Pages Deployment Banner */}
+      <div className="mt-8 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 dark:from-slate-900 dark:via-indigo-950/40 dark:to-slate-900 light:from-white light:via-indigo-50/60 light:to-white border border-indigo-500/30 rounded-2xl p-5 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-4 text-start">
+          <div className="w-12 h-12 rounded-xl bg-slate-800 dark:bg-slate-800 light:bg-slate-200 border border-slate-700 dark:border-slate-700 light:border-slate-300 flex items-center justify-center text-white light:text-slate-900 shadow-inner shrink-0">
+            <Github className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm sm:text-base text-white dark:text-white light:text-slate-900 flex items-center gap-2">
+              <span>{language === 'fa' ? 'استقرار و انتشار روی GitHub Pages' : language === 'ps' ? 'په GitHub Pages کې خپرول او ځای پر ځای کول' : 'Publish & Host on GitHub Pages'}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono border border-emerald-500/30">
+                CI/CD Ready
+              </span>
+            </h4>
+            <p className="text-xs text-slate-400 dark:text-slate-400 light:text-slate-600 mt-0.5">
+              {language === 'fa' 
+                ? 'پروژه آماده ارسال به ریپازیتوری شماست. گردش‌کار خودکار GitHub Actions، مسیرهای نسبی Vite و هندلر ۴۰۴ فعال شده‌اند.' 
+                : language === 'ps' 
+                ? 'پروژه ستاسو ریپوزیټري ته د استولو لپاره چمتو دی. د GitHub Actions اتومات جریان او نسبي لارې فعالې دي.' 
+                : 'Project is configured with Vite relative base paths (./), GitHub Actions CI/CD workflow, and SPA 404 handler for instant hosting.'}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowGhModal(true)}
+          className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-indigo-600/25 transition-all cursor-pointer shrink-0"
+        >
+          <Github className="w-4 h-4" />
+          <span>{language === 'fa' ? 'مشاهده راهنمای انتشار GitHub Pages' : language === 'ps' ? 'د GitHub Pages لارښود کتل' : 'Deploy to GitHub Pages'}</span>
+        </button>
+      </div>
+
+      {/* GitHub Pages Modal */}
+      <GitHubPagesModal
+        isOpen={showGhModal}
+        onClose={() => setShowGhModal(false)}
+      />
 
     </div>
   );

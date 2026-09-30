@@ -1,20 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { QADataProvider } from './context/QADataContext';
 import { ThemeLanguageProvider, useThemeLanguage } from './context/ThemeLanguageContext';
 import { Navbar } from './components/Navbar';
-import { WebsiteTesterSandbox } from './components/WebsiteTesterSandbox';
+import { ExternalWebsitesManager } from './components/ExternalWebsitesManager';
 import { IssuesDashboard } from './components/IssuesDashboard';
 import { TeamManagement } from './components/TeamManagement';
 import { BackupRecoveryModal } from './components/BackupRecoveryModal';
 import { ExtensionDownloader } from './components/ExtensionDownloader';
 import { IssueReportModal } from './components/IssueReportModal';
 import { ScreenshotCropModal } from './components/ScreenshotCropModal';
+import { GitHubPagesModal } from './components/GitHubPagesModal';
 import { ConsoleEntry, ImageAttachment } from './types/qa';
 
 function AppContent() {
-  const [currentView, setCurrentView] = useState<'sandbox' | 'dashboard' | 'extension' | 'team' | 'backup'>('sandbox');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'websites' | 'extension' | 'team' | 'backup'>('dashboard');
   const { t, dir } = useThemeLanguage();
+
+  // GitHub Pages deployment modal state
+  const [showGitHubPagesModal, setShowGitHubPagesModal] = useState(false);
 
   // Issue report modal state
   const [showReportModal, setShowReportModal] = useState(false);
@@ -24,10 +28,32 @@ function AppContent() {
     logs: ConsoleEntry[];
     initialImage?: ImageAttachment;
   }>({
-    pageUrl: 'https://demo-shopsphere.store/checkout/payment',
+    pageUrl: 'http://192.168.0.141/login',
     viewport: '1440x900',
     logs: []
   });
+
+  // Listen for query params triggered from external website extension / bookmarklet (e.g. ?action=report&url=http%3A%2F%2F192.168.0.141%2Flogin)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const action = params.get('action');
+      const targetUrl = params.get('url');
+      const viewport = params.get('viewport');
+      if (action === 'report' && targetUrl) {
+        setReportModalContext(prev => ({
+          ...prev,
+          pageUrl: decodeURIComponent(targetUrl),
+          viewport: viewport ? decodeURIComponent(viewport) : prev.viewport
+        }));
+        setShowReportModal(true);
+        // Clean URL without triggering reload
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch (e) {
+      console.warn('URL param parse error:', e);
+    }
+  }, []);
 
   // Direct Crop Studio state
   const [showCropStudio, setShowCropStudio] = useState(false);
@@ -123,21 +149,31 @@ function AppContent() {
         setCurrentView={setCurrentView}
         onOpenNewIssue={handleOpenReportModal}
         onSnapCurrentSite={handleSnapCurrentSite}
+        onOpenGitHubPages={() => setShowGitHubPagesModal(true)}
       />
 
       {/* Main View Router */}
       <main className="flex-1 pb-16">
-        {currentView === 'sandbox' && (
-          <WebsiteTesterSandbox
-            onOpenReportModalWithContext={handleOpenReportWithContext}
-            onOpenCropTool={handleOpenCropTool}
-            onOpenIssuesList={() => setCurrentView('dashboard')}
-          />
-        )}
-
         {currentView === 'dashboard' && (
           <IssuesDashboard
             onOpenNewIssue={handleOpenReportModal}
+          />
+        )}
+
+        {currentView === 'websites' && (
+          <ExternalWebsitesManager
+            onOpenReportModalWithUrl={(url) => {
+              setReportModalContext(prev => ({ ...prev, pageUrl: url }));
+              setShowReportModal(true);
+            }}
+            onNavigateToIssues={() => setCurrentView('dashboard')}
+            onNavigateToExtension={() => setCurrentView('extension')}
+          />
+        )}
+
+        {currentView === 'extension' && (
+          <ExtensionDownloader
+            onNavigateToWebsites={() => setCurrentView('websites')}
           />
         )}
 
@@ -147,12 +183,6 @@ function AppContent() {
 
         {currentView === 'backup' && (
           <BackupRecoveryModal />
-        )}
-
-        {currentView === 'extension' && (
-          <ExtensionDownloader
-            onLaunchSimulator={() => setCurrentView('sandbox')}
-          />
         )}
       </main>
 
@@ -166,11 +196,23 @@ function AppContent() {
             <span>·</span>
             <span>Firebase Synced: <code className="text-indigo-400 font-mono">qa-test-3d1c0</code></span>
           </div>
-          <div className="text-[11px] text-slate-400 dark:text-slate-400 light:text-slate-500">
-            Complies with Grammarly-style in-page docked extension, screenshot cropping, fixer forward workflows, and multi-site DB isolation.
+          <div className="flex items-center gap-3 text-[11px] text-slate-400 dark:text-slate-400 light:text-slate-500">
+            <span>Complies with Grammarly-style in-page docked extension, screenshot cropping, fixer forward workflows, and multi-site DB isolation.</span>
+            <button
+              onClick={() => setShowGitHubPagesModal(true)}
+              className="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-2 cursor-pointer shrink-0"
+            >
+              Publish to GitHub Pages
+            </button>
           </div>
         </div>
       </footer>
+
+      {/* GitHub Pages Deploy Modal */}
+      <GitHubPagesModal
+        isOpen={showGitHubPagesModal}
+        onClose={() => setShowGitHubPagesModal(false)}
+      />
 
       {/* Issue Report Modal */}
       {showReportModal && (

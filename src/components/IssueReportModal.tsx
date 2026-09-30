@@ -30,12 +30,13 @@ interface IssueReportModalProps {
 
 export const IssueReportModal: React.FC<IssueReportModalProps> = ({
   onClose,
-  pageUrl = 'https://demo-shopsphere.store/cart',
+  pageUrl,
   viewport = '1440x900',
   initialLogs = [],
   initialImage
 }) => {
-  const { activeWebsiteId, createIssue, teamMembers } = useQAData();
+  const { activeWebsiteId, activeWebsite, createIssue, teamMembers } = useQAData();
+  const effectivePageUrl = pageUrl || activeWebsite?.url || 'http://192.168.0.141/login';
   const { user } = useAuth();
   const { t } = useThemeLanguage();
 
@@ -176,7 +177,7 @@ export const IssueReportModal: React.FC<IssueReportModalProps> = ({
         assignedFixerName: selectedFixer?.displayName || 'Unassigned',
         mentionedFixers,
         images,
-        url: pageUrl,
+        url: effectivePageUrl,
         viewport,
         browser: 'Chrome 134 (Desktop / WebKit)',
         os: 'macOS 15.3 Sequoia',
@@ -504,7 +505,7 @@ export const IssueReportModal: React.FC<IssueReportModalProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div className="truncate">
                   <span className="text-slate-500">Site: </span>
-                  <span className="text-slate-300 light:text-slate-800 font-mono truncate">{pageUrl}</span>
+                  <span className="text-slate-300 light:text-slate-800 font-mono truncate">{effectivePageUrl}</span>
                 </div>
                 <div>
                   <span className="text-slate-500">Viewport: </span>
@@ -551,7 +552,7 @@ export const IssueReportModal: React.FC<IssueReportModalProps> = ({
       {/* Embedded Screenshot Crop Studio if requested */}
       {showCropStudio && (
         <ScreenshotCropModal
-          pageUrl={pageUrl}
+          pageUrl={effectivePageUrl}
           onClose={() => setShowCropStudio(false)}
           onSaveCrop={(attachment) => {
             setImages(prev => [...prev, attachment]);
