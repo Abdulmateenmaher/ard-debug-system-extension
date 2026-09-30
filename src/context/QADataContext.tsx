@@ -232,6 +232,106 @@ export const QADataProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.setItem('ard_team_members', JSON.stringify(teamMembers));
   }, [teamMembers]);
 
+  // Synchronize bugs registered via external in-page popup modal / Chrome extension
+  useEffect(() => {
+    const handleIncomingExternalIssue = (extIssue: any) => {
+      if (!extIssue || !extIssue.title) return;
+
+      setIssues(prev => {
+        if (prev.some(i => i.id === extIssue.id || (i.title === extIssue.title && i.url === extIssue.url))) {
+          return prev;
+        }
+
+        // Match against existing websites
+        const targetWeb = websites.find(w => w.url === extIssue.url) || 
+                          websites.find(w => extIssue.url && w.url.includes(new URL(extIssue.url).hostname)) ||
+                          websites.find(w => w.id === 'web_internal_141') ||
+                          websites[0];
+
+        const newIssue: Issue = {
+          id: extIssue.id || ('iss_ext_' + Date.now().toString(36)),
+          websiteId: targetWeb?.id || 'web_internal_141',
+          title: extIssue.title,
+          generalDesc: extIssue.generalDesc || 'Logged directly via in-page popup modal on ' + (extIssue.url || 'external site'),
+          stepsToReproduce: extIssue.stepsToReproduce || '',
+          expectedBehavior: extIssue.expectedBehavior || '',
+          actualBehavior: extIssue.actualBehavior || '',
+          priority: extIssue.priority || 'emergency',
+          status: 'pending',
+          reporterId: 'qa_ext_debugger',
+          reporterName: 'External QA Debugger',
+          reporterEmail: 'debugger@external.target',
+          assignedFixerId: 'dev_user_fixer_01',
+          assignedFixerName: extIssue.assignedFixerName || 'Sarah Chen (Lead Fixer / Dev)',
+          mentionedFixers: ['Sarah Chen (Lead Fixer / Dev)'],
+          images: [],
+          url: extIssue.url || targetWeb?.url || 'http://192.168.0.141/login',
+          viewport: extIssue.viewport || '1440x900',
+          browser: 'Chrome 134 (In-Page Injected Widget)',
+          os: 'Active OS',
+          consoleLogs: extIssue.consoleLogs || [],
+          createdAt: extIssue.timestamp || new Date().toISOString(),
+          updatedAt: extIssue.timestamp || new Date().toISOString(),
+          forwardHistory: [],
+          chatMessages: []
+        };
+
+        // Increment count on matching website
+        setWebsites(wList => wList.map(w => w.id === newIssue.websiteId ? { ...w, issueCount: (w.issueCount || 0) + 1 } : w));
+
+        return [newIssue, ...prev];
+      });
+    };
+
+    // 1. Process queued issues from localStorage
+    try {
+      const queued = JSON.parse(localStorage.getItem('ard_qa_external_issues') || '[]');
+      if (Array.isArray(queued) && queued.length > 0) {
+        queued.forEach(handleIncomingExternalIssue);
+      }
+    } catch (e) {}
+
+    // 2. BroadcastChannel listener across tabs
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('ard_qa_sync');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'ARD_REGISTER_BUG' && event.data?.payload) {
+            handleIncomingExternalIssue(event.data.payload);
+          }
+        };
+      } catch (e) {}
+    }
+
+    // 3. Storage event listener for cross-tab localStorage updates
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === 'ard_qa_external_issues' && e.newValue) {
+        try {
+          const list = JSON.parse(e.newValue);
+          if (Array.isArray(list) && list.length > 0) {
+            handleIncomingExternalIssue(list[0]);
+          }
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorageEvent);
+
+    // 4. Window postMessage listener
+    const handleMessageEvent = (e: MessageEvent) => {
+      if (e.data?.type === 'ARD_REGISTER_BUG' && e.data?.payload) {
+        handleIncomingExternalIssue(e.data.payload);
+      }
+    };
+    window.addEventListener('message', handleMessageEvent);
+
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener('storage', handleStorageEvent);
+      window.removeEventListener('message', handleMessageEvent);
+    };
+  }, [websites]);
+
   // Firestore sync for active website
   useEffect(() => {
     if (!activeWebsiteId) return;

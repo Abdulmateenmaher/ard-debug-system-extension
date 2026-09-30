@@ -108,24 +108,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (window.__ARD_EXT_LOADED__) return;
   window.__ARD_EXT_LOADED__ = true;
 
+  const ARD_HUB_URL = "${window.location.origin}";
+
+  // Capture console errors on this page
+  const capturedLogs = [];
+  const origConsoleError = console.error;
+  console.error = function(...args) {
+    capturedLogs.push({
+      type: 'error',
+      message: args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '),
+      timestamp: new Date().toLocaleTimeString()
+    });
+    origConsoleError.apply(console, args);
+  };
+  window.addEventListener('error', function(e) {
+    capturedLogs.push({
+      type: 'error',
+      message: (e.message || 'Error') + ' at ' + (e.filename || '') + ':' + (e.lineno || ''),
+      timestamp: new Date().toLocaleTimeString()
+    });
+  });
+
   const root = document.createElement("div");
   root.id = "ard-floating-root";
   root.innerHTML = \`
-    <div id="ard-menu" style="display:none;position:absolute;bottom:64px;right:0;width:300px;background:#0f172a;border:1px solid #334155;border-radius:16px;box-shadow:0 20px 35px -8px rgba(0,0,0,0.7);padding:14px;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;z-index:2147483647;">
+    <div id="ard-menu" style="display:none;position:absolute;bottom:64px;right:0;width:300px;background:#0f172a;border:1px solid #334155;border-radius:16px;box-shadow:0 20px 35px -8px rgba(0,0,0,0.7);padding:14px;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;z-index:2147483640;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #1e293b;">
         <div style="font-weight:bold;font-size:13px;display:flex;align-items:center;gap:6px;">
           <span style="color:#f43f5e;">●</span> ARD Bug Logger
         </div>
-        <button id="ard-close-menu" style="background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:16px;">&times;</button>
+        <button id="ard-close-menu" style="background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;">&times;</button>
       </div>
       <div style="color:#94a3b8;font-size:11px;margin-bottom:10px;word-break:break-all;">
         Active Target: <b>\${window.location.href}</b>
       </div>
-      <button id="ard-btn-report" style="width:100%;padding:9px;background:#e11d48;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;margin-bottom:6px;">
-        Report Bug on this Page
+      <button id="ard-btn-report" style="width:100%;padding:9px;background:#e11d48;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+        <span>Report Bug on this Page</span>
       </button>
-      <button id="ard-btn-dash" style="width:100%;padding:9px;background:#1e293b;color:#cbd5e1;border:1px solid #334155;border-radius:8px;font-weight:600;cursor:pointer;">
-        Open ARD QA Dashboard
+      <button id="ard-btn-dash" style="width:100%;padding:9px;background:#1e293b;color:#cbd5e1;border:1px solid #334155;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>Open ARD QA Dashboard</span>
       </button>
     </div>
 
@@ -147,11 +170,134 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   \`;
   document.body.appendChild(root);
 
+  // In-Page Popup Modal: "Register New Bug / Problem"
+  const modalOverlay = document.createElement("div");
+  modalOverlay.id = "ard-popup-overlay";
+  modalOverlay.style.cssText = "display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:2147483647;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;direction:ltr;font-family:-apple-system,BlinkMacSystemFont,sans-serif;";
+  modalOverlay.innerHTML = \`
+    <div id="ard-popup-dialog" style="background:#0f172a;border:1px solid #334155;border-radius:20px;width:100%;max-width:620px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.8);color:#f8fafc;overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid #1e293b;display:flex;align-items:center;justify-content:space-between;background:#111827;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:32px;height:32px;border-radius:10px;background:rgba(225,29,72,0.2);color:#fb7185;display:flex;align-items:center;justify-content:center;border:1px solid rgba(225,29,72,0.3);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:700;">Register New Bug / Problem</div>
+            <div style="font-size:11px;color:#94a3b8;">Log defect directly from active webpage into ARD Systems</div>
+          </div>
+        </div>
+        <button id="ard-modal-close-x" style="background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:22px;line-height:1;">&times;</button>
+      </div>
+
+      <div id="ard-modal-form-view" style="padding:18px 20px;overflow-y:auto;max-height:calc(90vh - 140px);">
+        <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px;">
+          <div style="background:#1e293b;padding:4px 8px;border-radius:6px;font-size:11px;color:#94a3b8;border:1px solid #334155;">
+            <span style="color:#6366f1;">Target:</span> <b style="color:#f8fafc;">\${window.location.href}</b>
+          </div>
+          <div style="background:#1e293b;padding:4px 8px;border-radius:6px;font-size:11px;color:#94a3b8;border:1px solid #334155;">
+            <span style="color:#38bdf8;">Viewport:</span> \${window.innerWidth}x\${window.innerHeight}
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;color:#94a3b8;margin-bottom:5px;">Issue / Problem Title <span style="color:#f43f5e;">*</span></label>
+          <input type="text" id="ard-input-title" style="width:100%;padding:9px 12px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#fff;font-size:12px;box-sizing:border-box;" placeholder="e.g. Login button fails or CSRF token mismatch on submit" required />
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;color:#94a3b8;margin-bottom:5px;">Priority Level <span style="color:#f43f5e;">*</span></label>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;" id="ard-priority-group">
+            <button type="button" class="ard-ext-pbtn" data-p="emergency" style="padding:7px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(225,29,72,0.2);border:1px solid #e11d48;color:#fb7185;cursor:pointer;">🔴 Emergency</button>
+            <button type="button" class="ard-ext-pbtn" data-p="high" style="padding:7px;border-radius:8px;font-size:11px;font-weight:600;background:#1e293b;border:1px solid #334155;color:#cbd5e1;cursor:pointer;">🟠 High</button>
+            <button type="button" class="ard-ext-pbtn" data-p="normal" style="padding:7px;border-radius:8px;font-size:11px;font-weight:600;background:#1e293b;border:1px solid #334155;color:#cbd5e1;cursor:pointer;">🟡 Normal</button>
+            <button type="button" class="ard-ext-pbtn" data-p="low" style="padding:7px;border-radius:8px;font-size:11px;font-weight:600;background:#1e293b;border:1px solid #334155;color:#cbd5e1;cursor:pointer;">🔵 Low</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;color:#94a3b8;margin-bottom:5px;">Category</label>
+            <select id="ard-input-cat" style="width:100%;padding:9px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#fff;font-size:12px;box-sizing:border-box;">
+              <option value="Authentication & Login">Authentication & Login</option>
+              <option value="UI & Visual Layout">UI & Visual Layout</option>
+              <option value="API & Network Connection">API & Network Connection</option>
+              <option value="Form Validation">Form Validation</option>
+              <option value="Performance & Crash">Performance & Crash</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;color:#94a3b8;margin-bottom:5px;">Assigned Fixer</label>
+            <select id="ard-input-fixer" style="width:100%;padding:9px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#fff;font-size:12px;box-sizing:border-box;">
+              <option value="Sarah Chen (Lead Fixer / Dev)">Sarah Chen (Lead Fixer)</option>
+              <option value="David Kim (Backend Fixer)">David Kim (Backend)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;color:#94a3b8;margin-bottom:5px;">Description</label>
+          <textarea id="ard-input-desc" style="width:100%;min-height:55px;padding:9px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#fff;font-size:12px;box-sizing:border-box;" placeholder="Details about this issue..."></textarea>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;color:#94a3b8;margin-bottom:5px;">Steps to Reproduce</label>
+          <textarea id="ard-input-steps" style="width:100%;min-height:50px;padding:9px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#fff;font-size:12px;box-sizing:border-box;" placeholder="1. Open page&#10;2. Click button&#10;3. Observe bug"></textarea>
+        </div>
+      </div>
+
+      <div id="ard-modal-success-view" style="display:none;text-align:center;padding:32px 20px;">
+        <div style="width:52px;height:52px;border-radius:16px;background:rgba(16,185,129,0.2);color:#34d399;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:24px;">✓</div>
+        <h3 style="font-size:16px;font-weight:700;color:#fff;margin:0 0 6px;">Bug Registered Successfully!</h3>
+        <p style="font-size:12px;color:#94a3b8;margin:0 0 16px;">Saved to ARD Systems queue and synced across tabs.</p>
+        <button id="ard-btn-done" style="padding:9px 18px;background:#e11d48;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Open ARD Dashboard</button>
+      </div>
+
+      <div id="ard-modal-footer" style="padding:14px 20px;border-top:1px solid #1e293b;background:#111827;display:flex;justify-content:flex-end;gap:10px;">
+        <button id="ard-btn-cancel-modal" style="padding:8px 14px;background:#1e293b;border:1px solid #334155;color:#cbd5e1;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Cancel</button>
+        <button id="ard-btn-open-full" style="padding:8px 14px;background:#1e293b;border:1px solid #334155;color:#cbd5e1;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Open Full Studio</button>
+        <button id="ard-btn-save-issue" style="padding:8px 16px;background:#e11d48;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Register Bug</button>
+      </div>
+    </div>
+  \`;
+  document.body.appendChild(modalOverlay);
+
   const orb = document.getElementById("ard-orb");
   const menu = document.getElementById("ard-menu");
   const closeBtn = document.getElementById("ard-close-menu");
   const reportBtn = document.getElementById("ard-btn-report");
   const dashBtn = document.getElementById("ard-btn-dash");
+
+  let extPriority = "emergency";
+  const pBtns = document.querySelectorAll(".ard-ext-pbtn");
+  pBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      pBtns.forEach(b => {
+        b.style.background = "#1e293b";
+        b.style.borderColor = "#334155";
+        b.style.color = "#cbd5e1";
+      });
+      const p = btn.getAttribute("data-p");
+      extPriority = p;
+      if (p === 'emergency') { btn.style.background = 'rgba(225,29,72,0.2)'; btn.style.borderColor = '#e11d48'; btn.style.color = '#fb7185'; }
+      else if (p === 'high') { btn.style.background = 'rgba(249,115,22,0.2)'; btn.style.borderColor = '#f97316'; btn.style.color = '#fb923c'; }
+      else if (p === 'normal') { btn.style.background = 'rgba(234,179,8,0.2)'; btn.style.borderColor = '#eab308'; btn.style.color = '#fde047'; }
+      else { btn.style.background = 'rgba(59,130,246,0.2)'; btn.style.borderColor = '#3b82f6'; btn.style.color = '#60a5fa'; }
+    });
+  });
+
+  function openExtModal() {
+    menu.style.display = "none";
+    document.getElementById("ard-modal-form-view").style.display = "block";
+    document.getElementById("ard-modal-success-view").style.display = "none";
+    document.getElementById("ard-modal-footer").style.display = "flex";
+    modalOverlay.style.display = "flex";
+    const titleInput = document.getElementById("ard-input-title");
+    if (titleInput) setTimeout(() => titleInput.focus(), 100);
+  }
+
+  function closeExtModal() {
+    modalOverlay.style.display = "none";
+  }
 
   orb.addEventListener("click", () => {
     menu.style.display = menu.style.display === "block" ? "none" : "block";
@@ -160,13 +306,79 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     e.stopPropagation();
     menu.style.display = "none";
   });
+
+  // Clicking "Report Bug on this Page" launches in-page popup modal: "Register New Bug / Problem"
   reportBtn.addEventListener("click", () => {
-    const hubUrl = "${window.location.origin}";
-    window.open(hubUrl + "?action=report&url=" + encodeURIComponent(window.location.href), "_blank");
+    openExtModal();
   });
+
   dashBtn.addEventListener("click", () => {
-    window.open("${window.location.origin}", "_blank");
+    window.open(ARD_HUB_URL, "_blank");
   });
+
+  document.getElementById("ard-modal-close-x").addEventListener("click", closeExtModal);
+  document.getElementById("ard-btn-cancel-modal").addEventListener("click", closeExtModal);
+  modalOverlay.addEventListener("click", (e) => {
+    if (e.target === modalOverlay) closeExtModal();
+  });
+
+  document.getElementById("ard-btn-open-full").addEventListener("click", () => {
+    const title = encodeURIComponent(document.getElementById("ard-input-title").value.trim());
+    const desc = encodeURIComponent(document.getElementById("ard-input-desc").value.trim());
+    const url = encodeURIComponent(window.location.href);
+    window.open(ARD_HUB_URL + \`?action=report&url=\${url}&title=\${title}&desc=\${desc}&priority=\${extPriority}\`, "_blank");
+    closeExtModal();
+  });
+
+  document.getElementById("ard-btn-save-issue").addEventListener("click", () => {
+    const titleInput = document.getElementById("ard-input-title");
+    const titleVal = titleInput.value.trim();
+    if (!titleVal) {
+      titleInput.style.borderColor = "#f43f5e";
+      titleInput.focus();
+      return;
+    }
+
+    const issuePayload = {
+      id: "iss_ext_" + Date.now().toString(36),
+      title: titleVal,
+      priority: extPriority,
+      category: document.getElementById("ard-input-cat").value,
+      assignedFixerName: document.getElementById("ard-input-fixer").value,
+      generalDesc: document.getElementById("ard-input-desc").value.trim(),
+      stepsToReproduce: document.getElementById("ard-input-steps").value.trim(),
+      url: window.location.href,
+      viewport: window.innerWidth + "x" + window.innerHeight,
+      consoleLogs: capturedLogs,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      const q = JSON.parse(localStorage.getItem("ard_qa_external_issues") || "[]");
+      q.unshift(issuePayload);
+      localStorage.setItem("ard_qa_external_issues", JSON.stringify(q));
+    } catch(e) {}
+
+    try {
+      if ('BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('ard_qa_sync');
+        bc.postMessage({ type: 'ARD_REGISTER_BUG', payload: issuePayload });
+        bc.close();
+      }
+    } catch(e) {}
+
+    document.getElementById("ard-modal-form-view").style.display = "none";
+    document.getElementById("ard-modal-footer").style.display = "none";
+    document.getElementById("ard-modal-success-view").style.display = "block";
+
+    document.getElementById("ard-btn-done").onclick = () => {
+      window.open(ARD_HUB_URL, "_blank");
+      closeExtModal();
+    };
+  });
+
+  // Global trigger helper
+  window.__ARD_OPEN_REPORT_MODAL__ = openExtModal;
 })();
 `;
 

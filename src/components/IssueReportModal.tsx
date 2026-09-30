@@ -26,6 +26,12 @@ interface IssueReportModalProps {
   viewport?: string;
   initialLogs?: ConsoleEntry[];
   initialImage?: ImageAttachment;
+  initialTitle?: string;
+  initialPriority?: PriorityLevel;
+  initialDesc?: string;
+  initialSteps?: string;
+  initialExpected?: string;
+  initialActual?: string;
 }
 
 export const IssueReportModal: React.FC<IssueReportModalProps> = ({
@@ -33,19 +39,25 @@ export const IssueReportModal: React.FC<IssueReportModalProps> = ({
   pageUrl,
   viewport = '1440x900',
   initialLogs = [],
-  initialImage
+  initialImage,
+  initialTitle = '',
+  initialPriority = 'emergency',
+  initialDesc = '',
+  initialSteps = '',
+  initialExpected = '',
+  initialActual = ''
 }) => {
   const { activeWebsiteId, activeWebsite, createIssue, teamMembers } = useQAData();
   const effectivePageUrl = pageUrl || activeWebsite?.url || 'http://192.168.0.141/login';
   const { user } = useAuth();
   const { t } = useThemeLanguage();
 
-  const [title, setTitle] = useState('');
-  const [generalDesc, setGeneralDesc] = useState('');
-  const [stepsToReproduce, setStepsToReproduce] = useState('');
-  const [expectedBehavior, setExpectedBehavior] = useState('');
-  const [actualBehavior, setActualBehavior] = useState('');
-  const [priority, setPriority] = useState<PriorityLevel>('emergency');
+  const [title, setTitle] = useState(initialTitle);
+  const [generalDesc, setGeneralDesc] = useState(initialDesc);
+  const [stepsToReproduce, setStepsToReproduce] = useState(initialSteps);
+  const [expectedBehavior, setExpectedBehavior] = useState(initialExpected);
+  const [actualBehavior, setActualBehavior] = useState(initialActual);
+  const [priority, setPriority] = useState<PriorityLevel>(initialPriority);
   
   // Assign primary fixer
   const fixers = teamMembers.filter(m => m.role === 'fixer' || m.role === 'admin');

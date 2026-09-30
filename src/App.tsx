@@ -27,6 +27,12 @@ function AppContent() {
     viewport: string;
     logs: ConsoleEntry[];
     initialImage?: ImageAttachment;
+    initialTitle?: string;
+    initialPriority?: 'emergency' | 'high' | 'normal' | 'low';
+    initialDesc?: string;
+    initialSteps?: string;
+    initialExpected?: string;
+    initialActual?: string;
   }>({
     pageUrl: 'http://192.168.0.141/login',
     viewport: '1440x900',
@@ -40,11 +46,24 @@ function AppContent() {
       const action = params.get('action');
       const targetUrl = params.get('url');
       const viewport = params.get('viewport');
-      if (action === 'report' && targetUrl) {
+      const title = params.get('title');
+      const priority = params.get('priority') as 'emergency' | 'high' | 'normal' | 'low' | null;
+      const desc = params.get('desc');
+      const steps = params.get('steps');
+      const expected = params.get('expected');
+      const actual = params.get('actual');
+
+      if (action === 'report' && (targetUrl || title)) {
         setReportModalContext(prev => ({
           ...prev,
-          pageUrl: decodeURIComponent(targetUrl),
-          viewport: viewport ? decodeURIComponent(viewport) : prev.viewport
+          pageUrl: targetUrl ? decodeURIComponent(targetUrl) : prev.pageUrl,
+          viewport: viewport ? decodeURIComponent(viewport) : prev.viewport,
+          initialTitle: title ? decodeURIComponent(title) : prev.initialTitle,
+          initialPriority: priority || prev.initialPriority || 'emergency',
+          initialDesc: desc ? decodeURIComponent(desc) : prev.initialDesc,
+          initialSteps: steps ? decodeURIComponent(steps) : prev.initialSteps,
+          initialExpected: expected ? decodeURIComponent(expected) : prev.initialExpected,
+          initialActual: actual ? decodeURIComponent(actual) : prev.initialActual
         }));
         setShowReportModal(true);
         // Clean URL without triggering reload
@@ -214,13 +233,19 @@ function AppContent() {
         onClose={() => setShowGitHubPagesModal(false)}
       />
 
-      {/* Issue Report Modal */}
+      {/* Issue Report Modal (Register New Bug / Problem) */}
       {showReportModal && (
         <IssueReportModal
           pageUrl={reportModalContext.pageUrl}
           viewport={reportModalContext.viewport}
           initialLogs={reportModalContext.logs}
           initialImage={reportModalContext.initialImage}
+          initialTitle={reportModalContext.initialTitle}
+          initialPriority={reportModalContext.initialPriority}
+          initialDesc={reportModalContext.initialDesc}
+          initialSteps={reportModalContext.initialSteps}
+          initialExpected={reportModalContext.initialExpected}
+          initialActual={reportModalContext.initialActual}
           onClose={() => setShowReportModal(false)}
         />
       )}

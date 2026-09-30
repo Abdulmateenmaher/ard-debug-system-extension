@@ -368,16 +368,43 @@ export const ExternalWebsitesManager: React.FC<ExternalWebsitesManagerProps> = (
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Live Test Trigger */}
+            <button
+              onClick={() => {
+                if ((window as any).__ARD_OPEN_REPORT_MODAL__) {
+                  (window as any).__ARD_OPEN_REPORT_MODAL__();
+                } else {
+                  const s = document.createElement('script');
+                  s.src = '/ard-qa-widget.js';
+                  s.onload = () => {
+                    setTimeout(() => {
+                      if ((window as any).__ARD_OPEN_REPORT_MODAL__) {
+                        (window as any).__ARD_OPEN_REPORT_MODAL__();
+                      }
+                    }, 150);
+                  };
+                  document.head.appendChild(s);
+                }
+              }}
+              className="px-3.5 py-2 bg-slate-800 dark:bg-slate-800 light:bg-slate-100 hover:bg-slate-700 text-rose-300 light:text-rose-700 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Test the exact in-page popup modal that appears on your website"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+              <span>Test In-Page Popup Live</span>
+            </button>
+
             {/* Draggable bookmarklet link */}
             <a
               href={bookmarkletCode}
               onClick={e => {
                 e.preventDefault();
-                alert('Drag this button to your browser bookmarks bar (Ctrl+Shift+B / Cmd+Shift+B). Then open http://192.168.0.141/login and click it!');
+                setCopiedBookmarklet(true);
+                navigator.clipboard.writeText(bookmarkletCode);
+                setTimeout(() => setCopiedBookmarklet(false), 3000);
               }}
               className="px-4 py-2 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-600/25 transition-all cursor-grab active:cursor-grabbing flex items-center gap-2"
-              title="Drag to your Bookmarks Bar"
+              title="Drag to your Bookmarks Bar (or click to copy code)"
             >
               <Bug className="w-4 h-4" />
               <span>🐞 ARD Bug Tool (Drag to Bookmarks)</span>
