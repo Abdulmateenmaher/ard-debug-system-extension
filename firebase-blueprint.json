@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "website": {
+      "title": "Website",
+      "description": "A website or application environment configured for QA testing and bug tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the website" },
+        "name": { "type": "string", "description": "Name of the target website", "maxLength": 100 },
+        "url": { "type": "string", "description": "Target website base URL", "maxLength": 500 },
+        "ownerId": { "type": "string", "description": "User ID of the creator/admin" },
+        "createdAt": { "type": "string", "description": "Timestamp string" },
+        "status": { "type": "string", "enum": ["active", "archived"] },
+        "issueCount": { "type": "number", "description": "Total issues reported for this website" }
+      },
+      "required": ["id", "name", "url", "ownerId", "createdAt", "status"]
+    },
+    "issue": {
+      "title": "Issue",
+      "description": "QA software bug report with screenshot crops, annotations, logs, and assignment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique issue ID" },
+        "websiteId": { "type": "string", "description": "Identifier of the target website" },
+        "title": { "type": "string", "description": "Short summary of the bug", "maxLength": 200 },
+        "generalDesc": { "type": "string", "description": "Detailed description of the issue", "maxLength": 5000 },
+        "priority": { "type": "string", "enum": ["emergency", "high", "normal", "low"] },
+        "status": { "type": "string", "enum": ["pending", "in_progress", "fixed", "delayed", "discarded"] },
+        "reporterId": { "type": "string", "description": "User ID of QA debugger who logged the bug" },
+        "reporterName": { "type": "string", "description": "Name of QA debugger" },
+        "assignedFixerId": { "type": "string", "description": "User ID of assigned fixer/developer" },
+        "assignedFixerName": { "type": "string", "description": "Name of assigned fixer/developer" },
+        "url": { "type": "string", "description": "Webpage URL where bug was reproduced" },
+        "viewport": { "type": "string", "description": "Viewport dimensions during capture" },
+        "browser": { "type": "string", "description": "Browser details" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of report" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last update" }
+      },
+      "required": ["id", "websiteId", "title", "priority", "status", "reporterId", "createdAt"]
+    },
+    "userProfile": {
+      "title": "UserProfile",
+      "description": "Registered QA debugger, fixer, or admin profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Display name" },
+        "role": { "type": "string", "enum": ["admin", "fixer", "debugger"] },
+        "isRestricted": { "type": "boolean", "description": "Whether user actions are restricted" },
+        "createdAt": { "type": "string", "description": "Account registration timestamp" }
+      },
+      "required": ["uid", "email", "displayName", "role"]
+    },
+    "backup": {
+      "title": "Backup",
+      "description": "Database snapshot backup for recovery and offline audit",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique backup ID" },
+        "websiteId": { "type": "string", "description": "Associated website ID or 'all'" },
+        "creatorId": { "type": "string", "description": "User ID who created backup" },
+        "createdAt": { "type": "string", "description": "Backup timestamp" },
+        "issuesCount": { "type": "number", "description": "Count of issues included" },
+        "backupData": { "type": "string", "description": "Exported JSON snapshot" }
+      },
+      "required": ["id", "websiteId", "creatorId", "createdAt", "issuesCount"]
+    }
+  },
+  "firestore": {
+    "/websites/{websiteId}": {
+      "schema": "website",
+      "description": "Isolated website project databases managed by admins"
+    },
+    "/websites/{websiteId}/issues/{issueId}": {
+      "schema": "issue",
+      "description": "QA bug reports and debug tasks scoped to a website"
+    },
+    "/users/{userId}": {
+      "schema": "userProfile",
+      "description": "User accounts, roles (fixer, debugger, admin), and restriction flags"
+    },
+    "/backups/{backupId}": {
+      "schema": "backup",
+      "description": "System and website backup records for disaster recovery"
+    }
+  }
+}

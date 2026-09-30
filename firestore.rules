@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Websites collection: registered users can view active websites; registered users can register and manage websites
+    match /websites/{websiteId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(websiteId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 120;
+      allow update: if isSignedIn() && (
+        existing().ownerId == request.auth.uid ||
+        // Allow updating issue counter or active status by any registered team member
+        incoming().diff(existing()).affectedKeys().hasOnly(['issueCount', 'status'])
+      );
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+      // Scoped Issues subcollection for each website
+      match /issues/{issueId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(issueId)
+          && incoming().reporterId == request.auth.uid
+          && incoming().websiteId == websiteId
+          && incoming().title is string && incoming().title.size() > 0 && incoming().title.size() <= 250;
+        allow update: if isSignedIn() && (
+          // Reporter, fixer, or owner can update issue status, forward, or modify content
+          existing().reporterId == request.auth.uid ||
+          existing().assignedFixerId == request.auth.uid ||
+          // Fixers can forward to next fixer or update status tabs
+          incoming().diff(existing()).affectedKeys().hasAny(['status', 'assignedFixerId', 'assignedFixerName', 'updatedAt', 'forwardHistory'])
+        );
+        allow delete: if isSignedIn() && (
+          existing().reporterId == request.auth.uid ||
+          get(/databases/$(database)/documents/websites/$(websiteId)).data.ownerId == request.auth.uid
+        );
+      }
+    }
+
+    // User Profiles
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && incoming().email is string && incoming().uid == userId;
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId ||
+        // Fixers/admins can update restrictions or roles of debuggers
+        incoming().diff(existing()).affectedKeys().hasOnly(['isRestricted', 'role'])
+      );
+      allow delete: if isSignedIn() && (
+        request.auth.uid == userId ||
+        // Fixers/admins can remove debuggers
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'fixer']
+      );
+    }
+
+    // Backups collection for disaster recovery & export
+    match /backups/{backupId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(backupId)
+        && incoming().creatorId == request.auth.uid;
+      allow update, delete: if isSignedIn() && existing().creatorId == request.auth.uid;
+    }
+  }
+}

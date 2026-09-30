@@ -1,0 +1,6 @@
+{
+  "name": "ARD Test and Debug Systems",
+  "description": "ARD Test and Debug Systems - Professional QA software testing and bug debugging browser extension and web workspace with in-page floating widget, screenshot crop & annotation, multi-image reports, fixer workflows, multi-site isolation, and multi-language support (English, Dari, Pashto).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
